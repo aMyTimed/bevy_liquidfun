@@ -15,6 +15,9 @@ use bevy_liquidfun::{
     dynamics::{b2BodyDef, b2BodyType::Dynamic, b2World},
 };
 
+#[derive(Component)]
+struct InfoText;
+
 fn main() {
     App::new()
         .add_plugins((
@@ -48,9 +51,9 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn setup_instructions(mut commands: Commands) {
-    commands.spawn(
+    commands.spawn((
         TextBundle::from_section(
-            "'L' Enable/Disable Limits\n'M' Enable/Disable Motor\n'S' Switch Motor Direction",
+            "'A' Decrease Stiffness\n'D' Increase Stiffness\nStiffness: 0.5",
             TextStyle {
                 font_size: 20.0,
                 color: Color::WHITE,
@@ -63,7 +66,8 @@ fn setup_instructions(mut commands: Commands) {
             left: Val::Px(15.0),
             ..default()
         }),
-    );
+        InfoText,
+    ));
 }
 
 fn setup_physics_world(world: &mut World) {
@@ -133,19 +137,24 @@ fn create_box(commands: &mut Commands, offset_x: f32) -> Entity {
     return box_entity;
 }
 
-fn check_keys(input: Res<Input<KeyCode>>, mut joints: Query<&mut b2DistanceJoint>) {
-    /*if input.just_pressed(KeyCode::L) {
+fn check_keys(
+    input: Res<Input<KeyCode>>,
+    mut joints: Query<&mut b2DistanceJoint>,
+    mut texts: Query<&mut Text, With<InfoText>>,
+) {
+    if input.just_pressed(KeyCode::D) {
         let mut joint = joints.get_single_mut().unwrap();
-        joint.enable_limit = !joint.enable_limit;
+        joint.stiffness += 0.1;
     }
 
-    if input.just_pressed(KeyCode::M) {
+    if input.just_pressed(KeyCode::A) {
         let mut joint = joints.get_single_mut().unwrap();
-        joint.enable_motor = !joint.enable_motor;
+        joint.stiffness -= 0.1;
     }
 
-    if input.just_pressed(KeyCode::S) {
-        let mut joint = joints.get_single_mut().unwrap();
-        joint.motor_speed = -joint.motor_speed;
-    }*/
+    let mut text = texts.get_single_mut().unwrap();
+    text.sections[0].value = format!(
+        "'A' Decrease Stiffness\n'D' Increase Stiffness\nStiffness: {:.1}",
+        joints.get_single_mut().unwrap().stiffness
+    );
 }
