@@ -14,7 +14,9 @@ keywords = ["liquidfun", "box2d", "physics", "bevy"]
 autocxx = "0.26.0"
 bitflags = "2.4.1"
 bevy = "0.12"
-libliquidfun-sys = "0.3.0"
+# libliquidfun-sys = "0.3.0"
+# we use https://github.com/Carroted/libliquidfun-sys.git now
+libliquidfun-sys = { git = "https://github.com/Carroted/libliquidfun-sys.git" }
 
 [dev-dependencies]
 rand = "0.8"

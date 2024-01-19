@@ -14,6 +14,12 @@ pub mod dynamics {
 
         mod prismatic_joint;
         pub use prismatic_joint::*;
+
+        mod distance_joint;
+        pub use distance_joint::*;
+
+        mod mouse_joint;
+        pub use mouse_joint::*;
     }
     mod contacts {
         mod contact_events;

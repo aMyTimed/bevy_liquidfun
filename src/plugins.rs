@@ -5,9 +5,9 @@ use libliquidfun_sys::box2d::ffi::int32;
 
 use crate::collision::b2Shape;
 use crate::dynamics::{
-    b2BeginContactEvent, b2Body, b2EndContactEvent, b2Fixture, b2Joint, b2ParticleBodyContact,
-    b2ParticleContacts, b2PrismaticJoint, b2RevoluteJoint, b2World, b2WorldSettings, ExternalForce,
-    ExternalTorque, GravityScale, JointPtr,
+    b2BeginContactEvent, b2Body, b2DistanceJoint, b2EndContactEvent, b2Fixture, b2Joint,
+    b2MouseJoint, b2ParticleBodyContact, b2ParticleContacts, b2PrismaticJoint, b2RevoluteJoint,
+    b2World, b2WorldSettings, ExternalForce, ExternalTorque, GravityScale, JointPtr,
 };
 use crate::internal::to_b2Vec2;
 use crate::particles::{b2ParticleGroup, b2ParticleSystem, b2ParticleSystemContacts};
@@ -62,6 +62,8 @@ impl Plugin for LiquidFunPlugin {
                     create_fixtures,
                     create_revolute_joints,
                     create_prismatic_joints,
+                    create_distance_joints,
+                    create_mouse_joints,
                     create_particle_systems,
                     create_particle_groups,
                     create_queued_particles,
@@ -72,6 +74,8 @@ impl Plugin for LiquidFunPlugin {
                     sync_bodies_to_world,
                     sync_revolute_joints_to_world,
                     sync_prismatic_joints_to_world,
+                    sync_distance_joints_to_world,
+                    sync_mouse_joints_to_world,
                 )
                     .chain()
                     .in_set(LiquidFunSet::SyncToPhysicsWorld),
@@ -199,6 +203,53 @@ fn create_prismatic_joints(
         );
     }
 }
+
+fn create_distance_joints(
+    mut b2_world: NonSendMut<b2World>,
+    mut added: Query<(Entity, &b2Joint, &b2DistanceJoint), Added<b2DistanceJoint>>,
+    mut bodies: Query<(Entity, &mut b2Body)>,
+) {
+    for (joint_entity, joint, distance_joint) in added.iter_mut() {
+        let [mut body_a, mut body_b] = bodies
+            .get_many_mut([*joint.body_a(), *joint.body_b()])
+            .unwrap();
+        let joint_ptr = distance_joint.create_ffi_joint(
+            &mut b2_world,
+            body_a.0,
+            body_b.0,
+            joint.collide_connected(),
+        );
+        b2_world.register_joint(
+            (joint_entity, &joint, joint_ptr),
+            (body_a.0, &mut body_a.1),
+            (body_b.0, &mut body_b.1),
+        );
+    }
+}
+
+fn create_mouse_joints(
+    mut b2_world: NonSendMut<b2World>,
+    mut added: Query<(Entity, &b2Joint, &b2MouseJoint), Added<b2MouseJoint>>,
+    mut bodies: Query<(Entity, &mut b2Body)>,
+) {
+    for (joint_entity, joint, mouse_joint) in added.iter_mut() {
+        let [mut body_a, mut body_b] = bodies
+            .get_many_mut([*joint.body_a(), *joint.body_b()])
+            .unwrap();
+        let joint_ptr = mouse_joint.create_ffi_joint(
+            &mut b2_world,
+            body_a.0,
+            body_b.0,
+            joint.collide_connected(),
+        );
+        b2_world.register_joint(
+            (joint_entity, &joint, joint_ptr),
+            (body_a.0, &mut body_a.1),
+            (body_b.0, &mut body_b.1),
+        );
+    }
+}
+
 fn create_particle_systems(
     mut commands: Commands,
     mut b2_world: NonSendMut<b2World>,
@@ -298,6 +349,30 @@ fn sync_prismatic_joints_to_world(
     for (entity, joint) in joints.iter() {
         let joint_ptr = b2_world.get_joint_ptr(&entity).unwrap();
         if let JointPtr::Prismatic(joint_ptr) = joint_ptr {
+            joint.sync_to_world(joint_ptr.as_mut());
+        }
+    }
+}
+
+fn sync_distance_joints_to_world(
+    mut b2_world: NonSendMut<b2World>,
+    joints: Query<(Entity, &b2DistanceJoint), Changed<b2DistanceJoint>>,
+) {
+    for (entity, joint) in joints.iter() {
+        let joint_ptr = b2_world.get_joint_ptr(&entity).unwrap();
+        if let JointPtr::Distance(joint_ptr) = joint_ptr {
+            joint.sync_to_world(joint_ptr.as_mut());
+        }
+    }
+}
+
+fn sync_mouse_joints_to_world(
+    mut b2_world: NonSendMut<b2World>,
+    joints: Query<(Entity, &b2MouseJoint), Changed<b2MouseJoint>>,
+) {
+    for (entity, joint) in joints.iter() {
+        let joint_ptr = b2_world.get_joint_ptr(&entity).unwrap();
+        if let JointPtr::Mouse(joint_ptr) = joint_ptr {
             joint.sync_to_world(joint_ptr.as_mut());
         }
     }
