@@ -144,12 +144,12 @@ fn check_keys(
     mut joints: Query<&mut b2DistanceJoint>,
     mut texts: Query<&mut Text, With<InfoText>>,
 ) {
-    if input.just_pressed(KeyCode::D) {
+    if input.pressed(KeyCode::D) {
         let mut joint = joints.get_single_mut().unwrap();
         joint.stiffness += 0.1;
     }
 
-    if input.just_pressed(KeyCode::A) {
+    if input.pressed(KeyCode::A) {
         let mut joint = joints.get_single_mut().unwrap();
         joint.stiffness -= 0.1;
     }
