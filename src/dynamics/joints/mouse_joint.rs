@@ -11,12 +11,6 @@ use crate::internal::to_b2Vec2;
 #[allow(non_camel_case_types)]
 #[derive(Component, Debug)]
 pub struct b2MouseJoint {
-    /// The local anchor point relative to bodyA's origin. This should typically be on a "ground body" at (0, 0) and can thus be considered world coordinates.
-    anchor_a: Vec2,
-
-    /// The local anchor point relative to bodyB's origin.
-    anchor_b: Vec2,
-
     /// The target point.
     pub target: Vec2,
 
@@ -33,8 +27,6 @@ pub struct b2MouseJoint {
 impl b2MouseJoint {
     pub fn new(def: &b2MouseJointDef) -> Self {
         Self {
-            anchor_a: def.anchor_a,
-            anchor_b: def.anchor_b,
             target: def.target,
             max_force: def.max_force,
             stiffness: def.stiffness,
@@ -60,7 +52,7 @@ impl b2MouseJoint {
                 body_a,
                 body_b,
                 collide_connected,
-                to_b2Vec2(&self.anchor_b),
+                to_b2Vec2(&self.target),
                 self.max_force,
                 self.stiffness,
                 self.damping,
@@ -81,8 +73,6 @@ impl b2MouseJoint {
 #[allow(non_camel_case_types)]
 #[derive(Default, Debug, Clone)]
 pub struct b2MouseJointDef {
-    pub anchor_a: Vec2,
-    pub anchor_b: Vec2,
     pub target: Vec2,
     pub max_force: f32,
     pub stiffness: f32,

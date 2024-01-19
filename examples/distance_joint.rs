@@ -15,6 +15,8 @@ use bevy_liquidfun::{
     dynamics::{b2BodyDef, b2BodyType::Dynamic, b2World},
 };
 
+use bevy_liquidfun::dynamics::b2BodyType;
+
 #[derive(Component)]
 struct InfoText;
 
@@ -78,8 +80,8 @@ fn setup_physics_world(world: &mut World) {
 
 fn setup_physics_bodies(mut commands: Commands) {
     let ground_entity = create_ground(&mut commands);
-    let box_entity_1 = create_box(&mut commands, -5.);
-    let box_entity_2 = create_box(&mut commands, 5.);
+    let box_entity_1 = create_box(&mut commands, -5., Dynamic);
+    let box_entity_2 = create_box(&mut commands, 5., b2BodyType::Static);
 
     let joint_def = b2DistanceJointDef {
         local_anchor_a: Vec2::new(0.0, 0.0),
@@ -117,10 +119,10 @@ fn create_ground(commands: &mut Commands) -> Entity {
     return ground_entity;
 }
 
-fn create_box(commands: &mut Commands, offset_x: f32) -> Entity {
+fn create_box(commands: &mut Commands, offset_x: f32, body_type: b2BodyType) -> Entity {
     let body_def = b2BodyDef {
-        body_type: Dynamic,
-        position: Vec2::new(offset_x, 10.),
+        body_type,
+        position: Vec2::new(offset_x, 20.),
         angle: 0.5 * PI,
         allow_sleep: false,
         ..default()
