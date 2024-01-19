@@ -74,7 +74,8 @@ fn setup_physics_world(world: &mut World) {
 
 fn setup_physics_bodies(mut commands: Commands) {
     let ground_entity = create_ground(&mut commands);
-    let box_entity = create_box(&mut commands);
+    let box_entity_1 = create_box(&mut commands, -5.);
+    let box_entity_2 = create_box(&mut commands, 5.);
 
     let joint_def = b2DistanceJointDef {
         local_anchor_a: Vec2::new(0.0, 0.0),
@@ -89,8 +90,8 @@ fn setup_physics_bodies(mut commands: Commands) {
     };
 
     commands.spawn_empty().add(CreateDistanceJoint::new(
-        ground_entity,
-        box_entity,
+        box_entity_1,
+        box_entity_2,
         true,
         &joint_def,
     ));
@@ -112,10 +113,10 @@ fn create_ground(commands: &mut Commands) -> Entity {
     return ground_entity;
 }
 
-fn create_box(commands: &mut Commands) -> Entity {
+fn create_box(commands: &mut Commands, offset_x: f32) -> Entity {
     let body_def = b2BodyDef {
         body_type: Dynamic,
-        position: Vec2::new(0., 10.),
+        position: Vec2::new(offset_x, 10.),
         angle: 0.5 * PI,
         allow_sleep: false,
         ..default()
