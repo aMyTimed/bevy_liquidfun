@@ -5,6 +5,7 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
+use bevy::window::PresentMode;
 use bevy_liquidfun::dynamics::{
     b2BodyBundle, b2Fixture, b2FixtureDef, b2MouseJoint, b2MouseJointDef, CreateMouseJoint,
 };
@@ -15,15 +16,34 @@ use bevy_liquidfun::{
     dynamics::{b2BodyDef, b2BodyType::Dynamic, b2World},
 };
 
+use bevy_liquidfun::dynamics::b2Body;
 use bevy_liquidfun::dynamics::b2BodyType;
+
+use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 
 #[derive(Component)]
 struct InfoText;
 
+#[derive(Component)]
+struct Box;
+
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        #[cfg(target_arch = "wasm32")]
+                        present_mode: PresentMode::default(), // wasm32-unknown-unknown doesn't support PresentMode::Immediate
+                        // on everything other than wasm32-unknown-unknown, immediate can be used for less input latency since this is an interactive mouse demo
+                        #[cfg(not(target_arch = "wasm32"))]
+                        present_mode: PresentMode::Immediate,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+                .build()
+                .disable::<PipelinedRenderingPlugin>(), // we want less input latency since this is an interactive mouse demo
             LiquidFunPlugin::default(),
             LiquidFunDebugDrawPlugin,
         ))
@@ -55,7 +75,7 @@ fn setup_camera(mut commands: Commands) {
 fn setup_instructions(mut commands: Commands) {
     commands.spawn((
         TextBundle::from_section(
-            "'A' Decrease Stiffness\n'D' Increase Stiffness\nStiffness: 0.5",
+            "Use mouse to drag it up",
             TextStyle {
                 font_size: 20.0,
                 color: Color::WHITE,
@@ -84,18 +104,20 @@ fn setup_physics_bodies(mut commands: Commands) {
 
     let joint_def = b2MouseJointDef {
         target: Vec2::new(-5., 20.),
-        stiffness: 0.5,
-        damping: 0.7,
-        max_force: 0.,
+        stiffness: 100.,
+        damping: 0.1,
+        max_force: f32::MAX,
         ..default()
     };
 
     commands.spawn_empty().add(CreateMouseJoint::new(
-        box_entity_1,
         ground_entity,
+        box_entity_1,
         true,
         &joint_def,
     ));
+
+    println!("Created mouse joint");
 }
 
 fn create_ground(commands: &mut Commands) -> Entity {
@@ -122,7 +144,7 @@ fn create_box(commands: &mut Commands, offset_x: f32, body_type: b2BodyType) -> 
         allow_sleep: false,
         ..default()
     };
-    let box_entity = commands.spawn(b2BodyBundle::new(&body_def)).id();
+    let box_entity = commands.spawn((b2BodyBundle::new(&body_def), Box)).id();
 
     let box_shape = b2Shape::create_box(1.0, 1.0);
     let fixture_def = b2FixtureDef::new(box_shape, 1.);
@@ -135,23 +157,31 @@ fn create_box(commands: &mut Commands, offset_x: f32, body_type: b2BodyType) -> 
 }
 
 fn check_keys(
-    input: Res<Input<KeyCode>>,
     mut joints: Query<&mut b2MouseJoint>,
-    mut texts: Query<&mut Text, With<InfoText>>,
+    mut gizmos: Gizmos,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    windows: Query<&Window>,
+    box_query: Query<&b2Body, With<Box>>,
 ) {
-    if input.pressed(KeyCode::D) {
-        let mut joint = joints.get_single_mut().unwrap();
-        joint.stiffness += 0.1;
-    }
+    let (camera, camera_transform) = camera_query.single();
 
-    if input.pressed(KeyCode::A) {
-        let mut joint = joints.get_single_mut().unwrap();
-        joint.stiffness -= 0.1;
-    }
+    let Some(cursor_position) = windows.single().cursor_position() else {
+        return;
+    };
 
-    let mut text = texts.get_single_mut().unwrap();
-    text.sections[0].value = format!(
-        "'A' Decrease Stiffness\n'D' Increase Stiffness\nStiffness: {:.1}",
-        joints.get_single_mut().unwrap().stiffness
-    );
+    // Calculate a world position based on the cursor's position.
+    let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+        return;
+    };
+
+    // set target to mouse
+
+    let mut joint = joints.get_single_mut().unwrap();
+    joint.target = point;
+
+    let mut end = point;
+    for box_body in box_query.iter() {
+        end = box_body.position;
+    }
+    gizmos.line_2d(point, end, Color::WHITE);
 }

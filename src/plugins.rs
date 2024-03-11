@@ -50,6 +50,30 @@ impl Plugin for LiquidFunPlugin {
         .insert_resource(PhysicsTimeAccumulator(0.))
         .add_systems(PreUpdate, (clear_forces, clear_torques))
         .add_systems(
+            PostStartup,
+            (
+                create_bodies,
+                create_fixtures,
+                create_revolute_joints,
+                create_prismatic_joints,
+                create_distance_joints,
+                create_mouse_joints,
+                create_particle_systems,
+                create_particle_groups,
+                create_queued_particles,
+                destroy_removed_fixtures,
+                destroy_removed_bodies,
+                destroy_queued_particles,
+                apply_deferred,
+                sync_bodies_to_world,
+                sync_revolute_joints_to_world,
+                sync_prismatic_joints_to_world,
+                sync_distance_joints_to_world,
+                sync_mouse_joints_to_world,
+            )
+                .chain(),
+        )
+        .add_systems(
             PostUpdate,
             (
                 (
@@ -247,6 +271,7 @@ fn create_mouse_joints(
             (body_a.0, &mut body_a.1),
             (body_b.0, &mut body_b.1),
         );
+        println!("Mouse joint registered");
     }
 }
 
