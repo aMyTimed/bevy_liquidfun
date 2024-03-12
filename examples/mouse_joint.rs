@@ -3,6 +3,7 @@ extern crate bevy_liquidfun;
 
 use std::f32::consts::PI;
 
+use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 
 use bevy::window::PresentMode;
@@ -23,9 +24,6 @@ use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 
 #[derive(Component)]
 struct InfoText;
-
-#[derive(Component)]
-struct Box;
 
 fn main() {
     App::new()
@@ -98,11 +96,17 @@ fn setup_physics_world(world: &mut World) {
     world.insert_non_send_resource(b2_world);
 }
 
+#[derive(Component)]
+struct GroundBody;
+
+#[derive(Component)]
+struct BoxBody;
+
 fn setup_physics_bodies(mut commands: Commands) {
     let ground_entity = create_ground(&mut commands);
     let box_entity_1 = create_box(&mut commands, -5., Dynamic);
 
-    let joint_def = b2MouseJointDef {
+    /*let joint_def = b2MouseJointDef {
         target: Vec2::new(-5., 20.),
         stiffness: 100.,
         damping: 0.1,
@@ -117,11 +121,11 @@ fn setup_physics_bodies(mut commands: Commands) {
         &joint_def,
     ));
 
-    println!("Created mouse joint");
+    println!("Created mouse joint");*/
 }
 
 fn create_ground(commands: &mut Commands) -> Entity {
-    let ground_entity = commands.spawn(b2BodyBundle::default()).id();
+    let ground_entity = commands.spawn((b2BodyBundle::default(), GroundBody)).id();
 
     let shape = b2Shape::EdgeTwoSided {
         v1: Vec2::new(-40., 0.),
@@ -144,7 +148,7 @@ fn create_box(commands: &mut Commands, offset_x: f32, body_type: b2BodyType) -> 
         allow_sleep: false,
         ..default()
     };
-    let box_entity = commands.spawn((b2BodyBundle::new(&body_def), Box)).id();
+    let box_entity = commands.spawn((b2BodyBundle::new(&body_def), BoxBody)).id();
 
     let box_shape = b2Shape::create_box(1.0, 1.0);
     let fixture_def = b2FixtureDef::new(box_shape, 1.);
@@ -157,17 +161,39 @@ fn create_box(commands: &mut Commands, offset_x: f32, body_type: b2BodyType) -> 
 }
 
 fn check_keys(
+    input: Res<Input<MouseButton>>,
     mut joints: Query<&mut b2MouseJoint>,
     mut gizmos: Gizmos,
     camera_query: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
-    box_query: Query<&b2Body, With<Box>>,
+    box_query: Query<(&b2Body, Entity), With<BoxBody>>,
+    ground_entity: Query<Entity, (With<GroundBody>, Without<BoxBody>)>,
+    commands: &mut Commands,
 ) {
     let (camera, camera_transform) = camera_query.single();
 
     let Some(cursor_position) = windows.single().cursor_position() else {
         return;
     };
+
+    if input.just_pressed(MouseButton::Left) {
+        let joint_def = b2MouseJointDef {
+            target: Vec2::new(-5., 20.),
+            stiffness: 100.,
+            damping: 0.1,
+            max_force: f32::MAX,
+            ..default()
+        };
+
+        commands.spawn_empty().add(CreateMouseJoint::new(
+            ground_entity.iter().next().unwrap(),
+            box_query.iter().next().unwrap().1,
+            true,
+            &joint_def,
+        ));
+
+        println!("Created mouse joint");
+    }
 
     // Calculate a world position based on the cursor's position.
     let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
@@ -176,12 +202,15 @@ fn check_keys(
 
     // set target to mouse
 
-    let mut joint = joints.get_single_mut().unwrap();
-    joint.target = point;
+    let mut joint_maybe = joints.get_single_mut();
+    if !joint_maybe.is_ok() {
+        return;
+    }
+    let joint = joint_maybe.unwrap();
 
     let mut end = point;
     for box_body in box_query.iter() {
-        end = box_body.position;
+        end = box_body.0.position;
     }
     gizmos.line_2d(point, end, Color::WHITE);
 }
